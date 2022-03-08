@@ -3,7 +3,12 @@ import Navigation from './components/Navigation';
 import Field from './components/Field';
 import Button from './components/Button';
 import ManipulationPanel from './components/ManipulationPanel';
-import './App.css';
+import { initFields } from './utils';
+
+const fields = initFields(35);
+// fields[17][17] = 'snake'
+// fields[17][17] = 'food'
+// x=17,y=17がマスにおける中心
 
 function App() {
   return (
@@ -15,7 +20,7 @@ function App() {
         <Navigation />
       </header>
       <main className='main'>
-        <Field />
+        <Field fields={fields} />
       </main>
       <footer className="footer">
         <Button />
