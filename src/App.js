@@ -1,33 +1,222 @@
-import React from 'react';
+import React ,{ useCallback, useEffect, useState }from 'react';
 import Navigation from './components/Navigation';
 import Field from './components/Field';
 import Button from './components/Button';
 import ManipulationPanel from './components/ManipulationPanel';
-import { initFields } from './utils';
+import { initFields } from './utils'; //utils/index.jsで作成したinitFieldsをインポート
 
-const fields = initFields(35);
-// fields[17][17] = 'snake'
-// fields[17][17] = 'food'
+const initialPosition = { x:17, y:17 }; //初回位置
+const initialValues = initFields(35, initialPosition); //初回値,第二引数に初回位置
+const defaultInterval = 100; // タイマーの間隔
+// console.log(initialValues,initialPosition)
 // x=17,y=17がマスにおける中心
 
+// ステータスリストをオブジェクトで管理(スペルミスを防ぐ・変更が容易)
+const GameStatus = Object.freeze({
+  init: 'init',
+  playing: 'playing',
+  suspended:'suspended',
+  gameover: 'gameover'
+});
+
+// スネークが曲がれる方向
+const Direction = Object.freeze({ //教材で後から頭に「export」がついてるが、必要なのか？
+  up: 'up',
+  right: 'right',
+  left: 'left',
+  down: 'down'
+});
+
+// 矢印キーコード
+const DirectionKeyCodeMap = Object.freeze({
+  37: Direction.left,
+  38: Direction.up,
+  39: Direction.right,
+  40: Direction.down,
+});
+
+// 反対方向
+const OppositeDirection = Object.freeze({
+  up: 'down',
+  right: 'left',
+  left: 'right',
+  down: 'up'
+});
+
+// 方向の座標
+const Delta = Object.freeze({
+  up: { x:0, y: -1 },
+  right: { x:1, y: 0 },
+  left: { x:-1, y: 0 },
+  down: { x:0, y: 1 }
+});
+
+// 登録を解除　タイマーで進むようにする
+const unsubscribe = () => {
+  if (!timer) {
+    return
+  }
+  clearInterval(timer) //タイマーを削除
+};
+
+// ゲームオーバー(衝突)
+const isCollision = (fieldSize, position) => {
+  // console.log(fieldSize,position)
+  if (position.y < 0 || position.x <0) { // ① 上・左の壁にぶつかったら
+    return true;
+  }
+  if (position.y > fieldSize -1 || position.x > fieldSize -1) { // ② 右・下の壁にぶつかったら
+    return true;
+  }
+  return false;
+};
+// positionは0〜数える　fieldSizeは1〜数える　②の条件に当てはまるのはpositionが34になった時なので、
+// fieldSizeを−1にして34になったら条件に当てはまるようにする。
+
+let timer = undefined;
+
 function App() {
+  // フック関数はReactの関数のトップレベルで宣言をする必要がある。
+  const [fields, setFields] = useState(initialValues); //フィールドの状態
+  const [position, setPosition] = useState(); // スネーク位置の状態
+  const [status, setStatus] = useState(GameStatus.init); //ゲームの状態
+  const [direction, setDirection] = useState(Direction.up); //スネークの方向
+  const [tick, setTick] = useState(0); //時計の針のようなステート(一定間隔でレンダリングがトリガーされる)
+
+  // useEffectに渡された関数はレンダーの結果が画面に反映された後に動作する
+  // useStateにはオブジェクトを初期値として渡すことができないので、代わりにuseEffectで初期化する
+  useEffect(() => {
+    setPosition(initialPosition) //位置が初回レンダリングのみ初回位置へ初期化される
+    timer = setInterval(() => { // ゲームの中の時間を管理する
+      setTick(tick => tick +1 )//定時間ごとにインクリメント(1増加)させる
+    }, defaultInterval) //defaultIntervalが100msなので100ms毎にレンダリングされる
+    return unsubscribe //returnでコンポーネントが削除サれるタイミングで関数を実行する
+  }, []); // 空：初回のみレンダリング
+
+  //プレイ中ではない限りスネークが動かないようにする
+  useEffect(() => {
+    if (!position || status !== GameStatus.playing) { 
+      return
+    }
+    // handleMoving関数をスネークが移動した後にゲームオーバーの状態になればゲームオーバー
+    const canContinue = handleMoving()
+    if (!canContinue) {
+      unsubscribe()
+      setStatus(GameStatus.gameover)
+    }
+  }, [tick]); //ゲームの中の時間が進む度にhandleMoving関数が呼ばれる
+
+  // スタートボタンを押したらスネークが動き出すようにする
+  const onStart = () => setStatus(GameStatus.playing);
+
+  // リセット(それぞれの値を初期値に戻す)
+  const onRestart = () => {
+    timer = setInterval(() => {
+      setTick(tick => tick +1)
+    }, defaultInterval)
+    setStatus(GameStatus.init)
+    setPosition(initialPosition)
+    setDirection(Direction.up)
+    setFields(initFields(fields.length, initialPosition))
+  };
+
+  // 操作パネルで方向を変えられるようにする
+  const onChangeDirection = useCallback((newDirection) => { //useCallback => レンダリングの度に関数が再生成されるのを防ぐ 
+    if (status !== GameStatus.playing) {
+      return direction
+    }
+    if (OppositeDirection[direction] === newDirection) { //反対方向
+      return
+    }
+    setDirection(newDirection)
+  }, [direction, status]); // [direction, status]を渡したため、配列(status)の状態が変わらない限り、関数が再生成されない
+
+
+  // キーボード操作
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const newDirection = DirectionKeyCodeMap[e.keyCode];
+      if (!newDirection) {
+        return;
+      }
+      onChangeDirection(newDirection);
+    };
+    document.addEventListener('keydown', handleKeyDown); //キーボードを検知するイベント
+    return () => document.removeEventListener('keydown', handleKeyDown) //イベントリスナーのクリーン
+  }, [onChangeDirection]); //操作パネルに依存、そのためonChangeDirectionの子要素である[direction, status]が変更されると実行される
+
+
+  // スネークを動かす　（goUp => handleMoving にリネーム）
+  const handleMoving = () => {
+    const {x, y} = position //座標をポジションとする
+    const delta = Delta[direction]; //対象の方向の座標を示す
+    const newPosition = {
+      x: x + delta.x,
+      y: y + delta.y,
+    };
+    // 壁にぶつかったらタイマーを解除する
+    if (isCollision(fields.length, newPosition)) {
+      // unsubscribe()
+      // console.log(isCollision(fields.length, newPosition))
+      return false;
+    }
+    fields[y][x] = '' //スネークの元いた位置を空に
+    fields[newPosition.y][newPosition.x] = 'snake' //次にいる場所を'snake'に変更
+    setPosition(newPosition)//スネーク位置を更新
+    setFields(fields) //フィールドを更新
+    return true;
+  }; 
+
   return (
     <div className='App'>
+
       <header className='header'>
         <div className='title-container'>
           <h1 className='title'>Snake Game</h1>
         </div>
         <Navigation />
       </header>
+
       <main className='main'>
         <Field fields={fields} />
       </main>
+
       <footer className="footer">
-        <Button />
-        <ManipulationPanel />
+        <Button status={status} onStart={onStart} onRestart={onRestart}/>
+        <ManipulationPanel onChange={onChangeDirection} />
       </footer>
+
     </div>
   );
-}
+};
 
 export default App;
+
+
+// 原因不明の時の確認方法「関数と組み合わせた方法」
+
+// import React from 'react';
+
+// const ManipulationPanel = ({ onChange }) => {
+//   const onUp = () => onChange('up')
+//   const onRight = () => onChange('right')
+//   const onLeft = () => onChange('left')
+//   const onDown = () => onChange('down')
+
+//   const click = () => {
+//     console.log('クリックされたよ')
+//   }
+//   return (
+//     <div className="manipulation-panel">
+//       <button onClick={() => {
+//         onLeft()
+//         click()
+//       }}>←</button>
+//       <button onClick={onUp}>↑</button>
+//       <button onClick={onDown}>↓</button>
+//       <button onClick={onRight}>→</button>
+//     </div>
+//   );
+// };
+
+// export default ManipulationPanel;

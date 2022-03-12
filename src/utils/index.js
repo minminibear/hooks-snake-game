@@ -1,15 +1,15 @@
 // スネークや餌の位置情報を格納する場所で、フィールドの位置に対応したデータを状態として保持
 
 // 他のファイルから読み込めるように頭にexportを宣言する
-export const initFields = (fieldSize) => {
+export const initFields = (fieldSize,initialPosition) => { //初回フィールド
     const fields = []
     for (let i = 0; i < fieldSize; i++) { 
         const cols = new Array(fieldSize).fill('') //fieldの縦の長さ分だけループする
         fields.push(cols)
     }
-    fields[17][17] = 'snake'
-    return fields
-}
+    fields[initialPosition.y][initialPosition.x] = 'snake' //初回の位置をスネークとする
+    return fields;
+};
 
 // 上記のイメージ↓
 // const field = [
