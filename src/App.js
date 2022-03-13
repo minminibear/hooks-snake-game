@@ -3,7 +3,7 @@ import Navigation from './components/Navigation';
 import Field from './components/Field';
 import Button from './components/Button';
 import ManipulationPanel from './components/ManipulationPanel';
-import { initFields } from './utils'; //utils/index.jsで作成したinitFieldsをインポート
+import { initFields, getFoodPosition } from './utils'; //utils/index.jsで作成したinitFieldsをインポート
 
 const initialPosition = { x:17, y:17 }; //初回位置
 const initialValues = initFields(35, initialPosition); //初回値,第二引数に初回位置
@@ -73,20 +73,30 @@ const isCollision = (fieldSize, position) => {
 // positionは0〜数える　fieldSizeは1〜数える　②の条件に当てはまるのはpositionが34になった時なので、
 // fieldSizeを−1にして34になったら条件に当てはまるようにする。
 
+// 自分自身を食べてしまう
+const isEatingMyself = (fields, position) => {
+  return fields[position.y][position.x] === 'snake'
+}
+
 let timer = undefined;
 
 function App() {
   // フック関数はReactの関数のトップレベルで宣言をする必要がある。
   const [fields, setFields] = useState(initialValues); //フィールドの状態
-  const [position, setPosition] = useState(); // スネーク位置の状態
+  const [body, setBody] = useState([]) //スネーク位置の状態(スネークが伸びるようにしていく)
   const [status, setStatus] = useState(GameStatus.init); //ゲームの状態
   const [direction, setDirection] = useState(Direction.up); //スネークの方向
   const [tick, setTick] = useState(0); //時計の針のようなステート(一定間隔でレンダリングがトリガーされる)
+  // const [position, setPosition] = useState(); // スネーク位置の状態（スネークの長さが1だった状態）
 
   // useEffectに渡された関数はレンダーの結果が画面に反映された後に動作する
   // useStateにはオブジェクトを初期値として渡すことができないので、代わりにuseEffectで初期化する
   useEffect(() => {
-    setPosition(initialPosition) //位置が初回レンダリングのみ初回位置へ初期化される
+    setBody([initialPosition]) //位置が初回レンダリングのみ初回位置へ初期化される
+    // setBody(
+    //   new Array(15).fill('').map((_item, index) => ({ x:17, y:17 + index })),
+    // )
+    // 自分自身を食べてゲームオーバーになるかのテスト用スネーク（スネークの長さを15にする）
     timer = setInterval(() => { // ゲームの中の時間を管理する
       setTick(tick => tick +1 )//定時間ごとにインクリメント(1増加)させる
     }, defaultInterval) //defaultIntervalが100msなので100ms毎にレンダリングされる
@@ -95,7 +105,7 @@ function App() {
 
   //プレイ中ではない限りスネークが動かないようにする
   useEffect(() => {
-    if (!position || status !== GameStatus.playing) { 
+    if (body.length === 0 || status !== GameStatus.playing) { 
       return
     }
     // handleMoving関数をスネークが移動した後にゲームオーバーの状態になればゲームオーバー
@@ -115,7 +125,7 @@ function App() {
       setTick(tick => tick +1)
     }, defaultInterval)
     setStatus(GameStatus.init)
-    setPosition(initialPosition)
+    setBody([initialPosition])
     setDirection(Direction.up)
     setFields(initFields(fields.length, initialPosition))
   };
@@ -148,21 +158,28 @@ function App() {
 
   // スネークを動かす　（goUp => handleMoving にリネーム）
   const handleMoving = () => {
-    const {x, y} = position //座標をポジションとする
+    const { x, y } = body[0] //座標をポジションとする
     const delta = Delta[direction]; //対象の方向の座標を示す
     const newPosition = {
       x: x + delta.x,
       y: y + delta.y,
     };
-    // 壁にぶつかったらタイマーを解除する
-    if (isCollision(fields.length, newPosition)) {
-      // unsubscribe()
-      // console.log(isCollision(fields.length, newPosition))
+    // タイマーを解除する
+    if (isCollision(fields.length, newPosition) || isEatingMyself(fields, newPosition)) { // 壁にぶつかるor自分自身を食べる
       return false;
     }
-    fields[y][x] = '' //スネークの元いた位置を空に
+    // fields[y][x] = '' //スネークの元いた位置を空に
+    const newBody = [...body] //新しく変数を定義することにより、popなどのは破壊的メソッドを使用してのレンダリングがうまくいくようにする
+    if (fields[newPosition.y][newPosition.x] !== 'food') { //スネーク座標がエサと同じでない場合
+      const removingTrack = newBody.pop() // pop=>末尾の配列を取り出して削除　スネークの状態を維持する
+      fields[removingTrack.y][removingTrack.x] = ''
+    } else { 
+      const food = getFoodPosition(fields.length, [...newBody, newPosition]) //エサを新しく出現させる
+      fields[food.y][food.x] = 'food'      
+    }
     fields[newPosition.y][newPosition.x] = 'snake' //次にいる場所を'snake'に変更
-    setPosition(newPosition)//スネーク位置を更新
+    newBody.unshift(newPosition)//スネーク位置を更新　unshift=>配列の先頭に要素を追加　スネークを伸ばす
+    setBody(newBody)
     setFields(fields) //フィールドを更新
     return true;
   }; 
