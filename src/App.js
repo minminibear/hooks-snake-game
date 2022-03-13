@@ -86,6 +86,7 @@ function App() {
   const [body, setBody] = useState([]) //スネーク位置の状態(スネークが伸びるようにしていく)
   const [status, setStatus] = useState(GameStatus.init); //ゲームの状態
   const [direction, setDirection] = useState(Direction.up); //スネークの方向
+  const [difficulty ,setDifficulty] = useState(3) //難易度
   const [tick, setTick] = useState(0); //時計の針のようなステート(一定間隔でレンダリングがトリガーされる)
   // const [position, setPosition] = useState(); // スネーク位置の状態（スネークの長さが1だった状態）
 
@@ -144,6 +145,16 @@ function App() {
     setDirection(newDirection)
   }, [direction, status]); // [direction, status]を渡したため、配列(status)の状態が変わらない限り、関数が再生成されない
 
+  // 難易度の設定
+  const onChangeDifficulty = useCallback((difficulty) => {
+    if (status !== GameStatus.init) {
+      return
+    }
+    if (difficulty < 1 || difficulty > difficulty.length) {
+      return
+    }
+    setDifficulty(difficulty)
+  }, [status, difficulty])
 
   // キーボード操作
   useEffect(() => {
@@ -194,7 +205,11 @@ function App() {
         <div className='title-container'>
           <h1 className='title'>Snake Game</h1>
         </div>
-        <Navigation length={body.length}/>
+        <Navigation
+        length={body.length}
+        difficulty={difficulty}
+        onChangeDifficulty={onChangeDifficulty}
+        />
       </header>
 
       <main className='main'>
