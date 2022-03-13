@@ -119,6 +119,9 @@ function App() {
   // スタートボタンを押したらスネークが動き出すようにする
   const onStart = () => setStatus(GameStatus.playing);
 
+  // 一時停止
+  const onStop = () => setStatus(GameStatus.suspended)
+
   // リセット(それぞれの値を初期値に戻す)
   const onRestart = () => {
     timer = setInterval(() => {
@@ -199,7 +202,12 @@ function App() {
       </main>
 
       <footer className="footer">
-        <Button status={status} onStart={onStart} onRestart={onRestart}/>
+        <Button
+        status={status}
+        onStop={onStop}
+        onStart={onStart}
+        onRestart={onRestart}
+        />
         <ManipulationPanel onChange={onChangeDirection} />
       </footer>
 
