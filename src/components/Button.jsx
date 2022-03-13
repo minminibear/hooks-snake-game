@@ -3,12 +3,6 @@ import React from 'react';
 const Button = ({ status, onStop, onStart, onRestart }) => {
     return(
         <div className="button">
-            {/* {
-                status === "gameover" ?
-                <button onClick={onRestart}>gameover</button>
-                :
-                <button onClick={onStart}>start</button>
-            }  */}
             { status === "gameover" && <button onClick={onRestart}>gameover</button> }
             { status === "init" && <button onClick={onStart}>start</button> }
             { status === "suspended" && <button onClick={onStart}>start</button> }
