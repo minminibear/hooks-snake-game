@@ -8,15 +8,18 @@ import { initFields, getFoodPosition } from './utils'; //utils/index.jsで作成
 const initialPosition = { x:17, y:17 }; //初回位置
 const initialValues = initFields(35, initialPosition); //初回値,第二引数に初回位置
 const defaultInterval = 100; // タイマーの間隔
-// console.log(initialValues,initialPosition)
+const defaultDifficulty = 3; //難易度
 // x=17,y=17がマスにおける中心
+
+// 難易度の速度
+const Difficulty = [1000, 500, 100, 50, 10]
 
 // ステータスリストをオブジェクトで管理(スペルミスを防ぐ・変更が容易)
 const GameStatus = Object.freeze({
   init: 'init',
   playing: 'playing',
   suspended:'suspended',
-  gameover: 'gameover'
+  gameover: 'gameover',
 });
 
 // スネークが曲がれる方向
@@ -86,7 +89,7 @@ function App() {
   const [body, setBody] = useState([]) //スネーク位置の状態(スネークが伸びるようにしていく)
   const [status, setStatus] = useState(GameStatus.init); //ゲームの状態
   const [direction, setDirection] = useState(Direction.up); //スネークの方向
-  const [difficulty ,setDifficulty] = useState(3) //難易度
+  const [difficulty ,setDifficulty] = useState(defaultDifficulty) //難易度
   const [tick, setTick] = useState(0); //時計の針のようなステート(一定間隔でレンダリングがトリガーされる)
   // const [position, setPosition] = useState(); // スネーク位置の状態（スネークの長さが1だった状態）
 
@@ -98,11 +101,21 @@ function App() {
     //   new Array(15).fill('').map((_item, index) => ({ x:17, y:17 + index })),
     // )
     // 自分自身を食べてゲームオーバーになるかのテスト用スネーク（スネークの長さを15にする）
-    timer = setInterval(() => { // ゲームの中の時間を管理する
+
+    // ゲームの中の時間を管理する
+    const interval = Difficulty[difficulty -1] //★
+    timer = setInterval(() => { 
       setTick(tick => tick +1 )//定時間ごとにインクリメント(1増加)させる
-    }, defaultInterval) //defaultIntervalが100msなので100ms毎にレンダリングされる
-    return unsubscribe //returnでコンポーネントが削除サれるタイミングで関数を実行する
-  }, []); // 空：初回のみレンダリング
+    }, interval) //defaultIntervalが100msなので100ms毎にレンダリングされる
+    // console.log(Difficulty)
+    return unsubscribe //returnでコンポーネントが削除されるタイミングで関数を実行する
+  }, [difficulty]); // 空：初回のみレンダリング　→　difficultyとなることで難易度の数字に変更があった時のみレンダリング
+
+    //　★の理由：
+    // Difficulty => [1000, 500, 100, 50, 10]
+    // difficulty -1 => useStateのdifficulty　初期値は3
+    // Difficultyという配列のインデックス番号を指定しているだけ。−1がないとDifficulty[3]は50になってしまう。
+    // −1があるとDifficulty[3-1]で100をみることになる。
 
   //プレイ中ではない限りスネークが動かないようにする
   useEffect(() => {
@@ -134,6 +147,7 @@ function App() {
     setFields(initFields(fields.length, initialPosition))
   };
 
+
   // 操作パネルで方向を変えられるようにする
   const onChangeDirection = useCallback((newDirection) => { //useCallback => レンダリングの度に関数が再生成されるのを防ぐ 
     if (status !== GameStatus.playing) {
@@ -145,16 +159,20 @@ function App() {
     setDirection(newDirection)
   }, [direction, status]); // [direction, status]を渡したため、配列(status)の状態が変わらない限り、関数が再生成されない
 
+
   // 難易度の設定
   const onChangeDifficulty = useCallback((difficulty) => {
-    if (status !== GameStatus.init) {
+    if (status !== GameStatus.init) { //ステータスが初期値initの時のみ難易度の設定ができるようにする
       return
     }
-    if (difficulty < 1 || difficulty > difficulty.length) {
+    if (difficulty < 1 || difficulty > Difficulty.length) {
       return
     }
     setDifficulty(difficulty)
   }, [status, difficulty])
+  // 操作パネルで方向を変える時同様にレンダリングの度に関数が再生成されるのを防ぐためにuseCallbackを使用する
+// console.log(difficulty)
+
 
   // キーボード操作
   useEffect(() => {
