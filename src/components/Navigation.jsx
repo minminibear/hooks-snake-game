@@ -1,7 +1,8 @@
 import React from 'react';
+import { defaultDifficulty, Difficulty } from '../constants';
 
-const Navigation = ({ length, difficulty= 3, onChangeDifficulty }) => {
-    const upVisibility = difficulty < 5 ? '' : 'is-hidden' //条件に一致すればhiddenというidを振る→難易度設定のための→を表示させる
+const Navigation = ({ length, difficulty= defaultDifficulty, onChangeDifficulty }) => {
+    const upVisibility = difficulty < Difficulty.length ? '' : 'is-hidden' //条件に一致すればhiddenというidを振る→難易度設定のための→を表示させる
     const downVisibility = difficulty > 1 ? '' : 'is-hidden'
     const onUpDifficulty = () => onChangeDifficulty(difficulty +1) //　難易度の表示を＋1
     const onDownDifficulty = () => onChangeDifficulty(difficulty -1) // 難易度の表示を-1
