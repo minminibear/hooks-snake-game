@@ -28,6 +28,26 @@ export const initFields = (fieldSize, snake) => { //初回フィールド
     return fields; //　作成した配列を返却
 };
 
+// ゲームオーバー（衝突）
+export const isCollision = (fieldSize, position) => {
+    if (position.y < 0 || position.x < 0) { // ① 上・左の壁にぶつかったら
+        // x,yのどちらかの座標がマイナスの値の時
+        return true;
+    }
+    if (position.y > fieldSize - 1 || position.x > fieldSize - 1) { // ② 右・下の壁にぶつかったら
+        // x,yのどちらかの座標がフィールドサイズを超えてしまっている時
+        return true;
+    }
+    return false;
+};
+// // positionは0〜数える　fieldSizeは1〜数える　②の条件に当てはまるのはpositionが34になった時なので、
+// // fieldSizeを−1にして34になったら条件に当てはまるようにする。
+
+// 自分自身を食べてしまう
+export const isEatingMyself = (fields, position) => {
+    return fields[position.y][position.x] === 'snake'
+}
+
 // 上記のイメージ↓
 // const field = [
 //     ['', 'food', '', '', ''],
